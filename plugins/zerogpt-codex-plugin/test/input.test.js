@@ -26,6 +26,18 @@ test("reads plain text files as original-file input", async () => {
   }
 });
 
+test("omits embedded image data URLs before checking text", async () => {
+  const prepared = await prepareInput({
+    text: "Useful text.\n[image1]: <data:image/png;base64,AAAA\nBBBB>\nMore useful text."
+  });
+
+  assert.match(prepared.text, /Useful text/);
+  assert.match(prepared.text, /data:image;base64,\[omitted\]/);
+  assert.doesNotMatch(prepared.text, /AAAA/);
+  assert.deepEqual(prepared.warnings, ["Embedded image data URLs were omitted before checking."]);
+});
+
+
 test("accepts stdin as an input source", async () => {
   const prepared = await prepareInput({ stdin: "Text from stdin\n" });
   assert.equal(prepared.text, "Text from stdin");
@@ -131,10 +143,113 @@ test("checkZeroGPTInput returns full JSON metadata with detector stub", async ()
     notice: null,
     warnings: [],
     flagged: [],
+    split: false,
+    chunkCount: 1,
+    chunks: [],
     sourceFile: null,
     textSource: "direct-text",
     convertedFile: null
   });
+});
+
+test("checkZeroGPTInput runs short text once", async () => {
+  let calls = 0;
+  await checkZeroGPTInput(
+    { text: "Short text." },
+    {
+      detector: async () => {
+        calls += 1;
+        return {
+          source: "zerogpt",
+          verdict: "Your Text is Human written",
+          aiPercentage: 0,
+          wordCount: 2,
+          characterCount: 11,
+          notice: null,
+          warnings: [],
+          flagged: []
+        };
+      }
+    }
+  );
+
+  assert.equal(calls, 1);
+});
+
+test("checkZeroGPTInput splits long text and aggregates chunk results", async () => {
+  const input = `${"Human sentence. ".repeat(700)}\n\n${"Generated sentence. ".repeat(700)}`;
+  const seenLengths = [];
+  const result = await checkZeroGPTInput(
+    { text: input },
+    {
+      detector: async (chunkText) => {
+        seenLengths.push(chunkText.length);
+        return {
+          source: "zerogpt",
+          verdict: "chunk verdict",
+          aiPercentage: seenLengths.length === 1 ? 10 : 30,
+          wordCount: 10,
+          characterCount: chunkText.length,
+          notice: null,
+          warnings: [],
+          flagged: [{ lineStart: 1, lineEnd: 1, snippet: chunkText.slice(0, 20) }]
+        };
+      }
+    }
+  );
+
+  assert.ok(seenLengths.length > 1);
+  assert.ok(seenLengths.every((length) => length <= 15000));
+  assert.equal(result.split, true);
+  assert.equal(result.chunkCount, seenLengths.length);
+  assert.equal(result.chunks.length, seenLengths.length);
+  assert.ok(Number.isFinite(result.aiPercentage));
+  assert.ok(result.flagged.every((item) => Number.isFinite(item.lineStart)));
+});
+
+test("checkZeroGPTInput supports bounded chunk concurrency", async () => {
+  const input = `${"Alpha sentence. ".repeat(800)}\n\n${"Beta sentence. ".repeat(800)}`;
+  let active = 0;
+  let maxActive = 0;
+
+  await checkZeroGPTInput(
+    { text: input },
+    {
+      concurrency: 2,
+      detector: async (chunkText) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        active -= 1;
+        return {
+          source: "zerogpt",
+          verdict: "chunk verdict",
+          aiPercentage: 10,
+          wordCount: 10,
+          characterCount: chunkText.length,
+          notice: null,
+          warnings: [],
+          flagged: []
+        };
+      }
+    }
+  );
+
+  assert.equal(maxActive, 2);
+});
+
+test("checkZeroGPTInput rejects invalid chunk concurrency", async () => {
+  await assert.rejects(
+    () =>
+      checkZeroGPTInput(
+        { text: `${"Alpha sentence. ".repeat(800)}\n\n${"Beta sentence. ".repeat(800)}` },
+        {
+          concurrency: 5,
+          detector: async () => ({})
+        }
+      ),
+    /--concurrency must be an integer from 1 to 4/
+  );
 });
 
 test("CLI rejects mixed input sources before browser automation", () => {

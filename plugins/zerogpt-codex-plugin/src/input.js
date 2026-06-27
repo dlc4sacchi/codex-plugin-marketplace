@@ -4,6 +4,7 @@ import path from "node:path";
 import { TextDecoder } from "node:util";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
+import { combineChunkResults, splitTextForZeroGPT } from "./splitter.js";
 
 const TEXT_EXTENSIONS = new Set([
   ".txt",
@@ -47,9 +48,17 @@ export async function checkZeroGPTInput(inputOptions, runOptions = {}, detector)
   const detect = runOptions.detector ?? detector;
 
   try {
-    const result = await detect(prepared.text, runOptions);
+    const chunks = splitTextForZeroGPT(prepared.text);
+    const result =
+      chunks.length === 1
+        ? await detect(chunks[0].text, runOptions)
+        : combineChunkResults(await detectChunks(chunks, detect, runOptions));
+
     return {
       ...result,
+      split: chunks.length > 1,
+      chunkCount: chunks.length,
+      chunks: chunks.length > 1 ? result.chunks : [],
       sourceFile: prepared.sourceFile,
       textSource: prepared.textSource,
       convertedFile: prepared.convertedFile,
@@ -58,6 +67,45 @@ export async function checkZeroGPTInput(inputOptions, runOptions = {}, detector)
   } finally {
     await prepared.cleanup();
   }
+}
+
+async function detectChunks(chunks, detect, runOptions) {
+  const concurrency = normalizeConcurrency(runOptions.concurrency);
+  const results = new Array(chunks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < chunks.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      const chunk = chunks[currentIndex];
+      results[currentIndex] = {
+        chunk,
+        result: await detectWithRetry(chunk.text, detect, runOptions)
+      };
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, chunks.length) }, () => worker()));
+  return results;
+}
+
+async function detectWithRetry(text, detect, runOptions) {
+  try {
+    return await detect(text, runOptions);
+  } catch (error) {
+    if (runOptions.retryChunks === false) throw error;
+    return detect(text, runOptions);
+  }
+}
+
+function normalizeConcurrency(value) {
+  if (value === undefined || value === null) return 1;
+  const concurrency = Number(value);
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) {
+    throw new Error("--concurrency must be an integer from 1 to 4");
+  }
+  return concurrency;
 }
 
 export async function prepareInput(options = {}) {
@@ -171,7 +219,8 @@ async function writeConvertedText(text, options) {
 }
 
 function preparedText(text, metadata) {
-  const value = String(text ?? "").trim();
+  const sanitized = omitEmbeddedDataUrls(String(text ?? ""));
+  const value = sanitized.text.trim();
   if (!value) throw new Error("Input text is empty");
 
   return {
@@ -179,7 +228,7 @@ function preparedText(text, metadata) {
     sourceFile: metadata.sourceFile ?? null,
     textSource: metadata.textSource,
     convertedFile: metadata.convertedFile ?? null,
-    warnings: metadata.warnings ?? [],
+    warnings: [...(metadata.warnings ?? []), ...sanitized.warnings],
     cleanup: metadata.cleanup ?? async function noop() {}
   };
 }
@@ -194,4 +243,18 @@ function decodeSafeUtf8(buffer, filePath, ext) {
   } catch {
     throw new Error(`File is not valid UTF-8 text: ${filePath}`);
   }
+}
+
+function omitEmbeddedDataUrls(text) {
+  const warnings = [];
+  const replaced = text.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=\r\n]+/g, (match) => {
+    warnings.push("Embedded image data URLs were omitted before checking.");
+    const lineBreaks = match.match(/\n/g)?.length ?? 0;
+    return `data:image;base64,[omitted]${"\n".repeat(lineBreaks)}`;
+  });
+
+  return {
+    text: replaced,
+    warnings: [...new Set(warnings)]
+  };
 }

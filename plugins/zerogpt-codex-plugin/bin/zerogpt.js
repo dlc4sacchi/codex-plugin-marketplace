@@ -15,6 +15,7 @@ Options:
   --debug             Include raw page text for selector debugging.
   --keep-temp         Preserve converted text files and include their paths in JSON output.
   --temp-dir <path>   Directory for temporary converted text files.
+  --concurrency <n>   Chunk browser concurrency, 1-4. Default: 1.
   --headed            Show the browser while running.
   --timeout <ms>      Maximum wait time. Default: 60000.
   --url <url>         ZeroGPT URL. Default: https://www.zerogpt.com/
@@ -29,6 +30,7 @@ function parseArgs(argv) {
     keepTemp: false,
     headed: false,
     timeoutMs: 60000,
+    concurrency: 1,
     url: "https://www.zerogpt.com/"
   };
 
@@ -47,6 +49,8 @@ function parseArgs(argv) {
       options.keepTemp = true;
     } else if (arg === "--temp-dir") {
       options.tempDir = readOptionValue(argv, ++i, "--temp-dir");
+    } else if (arg === "--concurrency") {
+      options.concurrency = Number(readOptionValue(argv, ++i, "--concurrency"));
     } else if (arg === "--headed") {
       options.headed = true;
     } else if (arg === "--text") {
@@ -141,6 +145,7 @@ async function main() {
   const result = await checkZeroGPTInput(inputOptions, {
     headed: options.headed,
     includeRawText: options.debug,
+    concurrency: options.concurrency,
     timeoutMs: options.timeoutMs,
     url: options.url
   });

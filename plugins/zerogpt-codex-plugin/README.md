@@ -20,6 +20,7 @@ npm test
 ```bash
 npm run smoke
 npm run smoke:lines
+npm run smoke:test-docs
 node ./bin/zerogpt.js --text "Paste text here" --json
 node ./bin/zerogpt.js --text "Paste text here" --compact
 node ./bin/zerogpt.js --file ./input.txt
@@ -27,6 +28,10 @@ node ./bin/zerogpt.js --file ./paper.docx --json --keep-temp
 node ./bin/zerogpt.js --file ./paper.pdf --json --temp-dir ./work/zerogpt
 cat input.txt | node ./bin/zerogpt.js --json
 ```
+
+Inputs longer than 15,000 characters are split into multiple ZeroGPT browser runs. Full JSON includes `split`, `chunkCount`, and compact `chunks[]` metadata; compact JSON stays score-only.
+Use `--concurrency 2` for long files if you want faster chunk checks. Higher concurrency can make ZeroGPT more likely to rate-limit or stall, so the CLI caps it at 4 and defaults to 1.
+`npm run smoke:test-docs` uses local files in `/home/saint/test docs` and the live ZeroGPT website, so it can be slow or drift as ZeroGPT changes.
 
 For local global-style use:
 
