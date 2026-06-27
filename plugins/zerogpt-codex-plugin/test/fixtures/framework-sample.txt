@@ -1,0 +1,7 @@
+# Framework Computer sample
+
+Framework Computer is a small computer company built around a pretty direct idea: a laptop should be something the user can fix and change, not a sealed box that becomes a problem when one part fails.
+
+For this paper, the broad industry is the global laptop and personal computer market. My argument is that Framework is not trying to beat Apple, Lenovo, or Dell by being cheaper. It is selling control: repairability, Linux support, customizable ports, and upgrades.
+
+The broad laptop and PC market is best classified as an oligopoly. Gartner reported that in 2025 Lenovo had 27.2 percent of worldwide PC shipments, HP 21.3 percent, Dell 15.3 percent, Apple 9.2 percent, ASUS 6.9 percent, and Acer 6.3 percent.

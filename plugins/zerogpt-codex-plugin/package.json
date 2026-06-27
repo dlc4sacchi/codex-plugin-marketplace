@@ -1,0 +1,22 @@
+{
+  "name": "zerogpt-codex-plugin",
+  "version": "0.1.0",
+  "description": "A Playwright-powered ZeroGPT CLI packaged as a Codex plugin skill.",
+  "type": "module",
+  "bin": {
+    "zerogpt": "./bin/zerogpt.js"
+  },
+  "scripts": {
+    "check": "node --check bin/zerogpt.js && node --check src/zerogpt.js && node --check src/line-map.js && node --check src/highlights.js",
+    "test": "node --test",
+    "smoke": "node ./bin/zerogpt.js --text \"This is a short human-written sample for testing the detector automation. It contains ordinary prose and should be enough to exercise the workflow.\" --compact",
+    "smoke:lines": "node ./bin/zerogpt.js --file test/fixtures/framework-sample.txt --json"
+  },
+  "dependencies": {
+    "playwright": "^1.56.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "zerogpt-codex-plugin",
+  "version": "0.1.0",
+  "description": "Check text with ZeroGPT from Codex using a Playwright-powered CLI.",
+  "author": {
+    "name": "dlc4sacchi",
+    "url": "https://github.com/dlc4sacchi"
+  },
+  "homepage": "https://github.com/dlc4sacchi/codex-plugin-marketplace/tree/main/plugins/zerogpt-codex-plugin",
+  "repository": "https://github.com/dlc4sacchi/codex-plugin-marketplace",
+  "license": "MIT",
+  "keywords": ["zerogpt", "ai-detector", "playwright", "codex-skill"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ZeroGPT Checker",
+    "shortDescription": "Check AI likelihood and detected lines with ZeroGPT.",
+    "longDescription": "ZeroGPT Checker adds a Codex skill backed by a local Playwright CLI. It can run compact score-only checks or return detected line snippets mapped back to the original input.",
+    "developerName": "dlc4sacchi",
+    "category": "Productivity",
+    "capabilities": ["Text analysis"],
+    "defaultPrompt": [
+      "Check this file with ZeroGPT.",
+      "Run ZeroGPT and show detected lines.",
+      "Give me a compact ZeroGPT score."
+    ]
+  }
+}
