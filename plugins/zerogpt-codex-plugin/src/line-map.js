@@ -16,9 +16,18 @@ export function mapHighlightedText(inputText, highlights, options = {}) {
   const maxSnippetLength = options.maxSnippetLength ?? 180;
 
   return normalizeHighlightList(highlights)
-    .map((highlight) => {
-      const match = findBestMatch(normalized.text, normalizeText(highlight), usedRanges);
-      if (!match) return null;
+    .map((highlight, order) => {
+      const normalizedHighlight = normalizeText(highlight);
+      const match = findBestMatch(normalized.text, normalizedHighlight, usedRanges);
+      if (!match) {
+        return {
+          lineStart: null,
+          lineEnd: null,
+          snippet: createSnippet(highlight, maxSnippetLength),
+          _order: order,
+          _offset: Number.POSITIVE_INFINITY
+        };
+      }
 
       const start = normalized.offsets[match.start] ?? 0;
       const end =
@@ -29,17 +38,21 @@ export function mapHighlightedText(inputText, highlights, options = {}) {
       return {
         lineStart: offsetToLine(index.lineStarts, start),
         lineEnd: offsetToLine(index.lineStarts, end),
-        snippet: createSnippet(index.source.slice(start, end + 1), maxSnippetLength)
+        snippet: createSnippet(index.source.slice(start, end + 1), maxSnippetLength),
+        _order: order,
+        _offset: start
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => a.lineStart - b.lineStart || a.lineEnd - b.lineEnd);
+    .sort((a, b) => a._offset - b._offset || a._order - b._order)
+    .map(({ _offset, _order, ...item }) => item);
 }
 
 export function normalizeText(value) {
   return String(value ?? "")
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/\s+([.,;:!?%)\]}])/g, "$1")
+    .replace(/([([{])\s+/g, "$1")
     .trim();
 }
 
@@ -58,7 +71,11 @@ function buildNormalizedMap(source) {
       continue;
     }
 
-    if (pendingSpaceOffset !== null) {
+    if (
+      pendingSpaceOffset !== null &&
+      !isClosingPunctuation(char) &&
+      !isOpeningPunctuation(text.at(-1))
+    ) {
       text += " ";
       offsets.push(pendingSpaceOffset);
       pendingSpaceOffset = null;
@@ -66,9 +83,18 @@ function buildNormalizedMap(source) {
 
     text += char;
     offsets.push(index);
+    pendingSpaceOffset = null;
   }
 
   return { text: text.trim(), offsets };
+}
+
+function isClosingPunctuation(char) {
+  return /[.,;:!?%)\]}]/.test(char ?? "");
+}
+
+function isOpeningPunctuation(char) {
+  return /[([{]/.test(char ?? "");
 }
 
 function normalizeHighlightList(highlights) {

@@ -45,6 +45,33 @@ test("maps highlights when ZeroGPT collapses visual wrapping and spaces", () => 
   assert.equal(flagged[0].lineEnd, 4);
 });
 
+test("maps highlights when ZeroGPT changes spacing around punctuation", () => {
+  const input = "Framework sells control : repairability , Linux support , and upgrades.";
+  const flagged = mapHighlightedText(input, [
+    "Framework sells control: repairability, Linux support, and upgrades."
+  ]);
+
+  assert.deepEqual(flagged, [
+    {
+      lineStart: 1,
+      lineEnd: 1,
+      snippet: "Framework sells control: repairability, Linux support, and upgrades."
+    }
+  ]);
+});
+
+test("returns unmapped highlights with null lines", () => {
+  const flagged = mapHighlightedText("Only original text.", ["Missing highlighted sentence."]);
+
+  assert.deepEqual(flagged, [
+    {
+      lineStart: null,
+      lineEnd: null,
+      snippet: "Missing highlighted sentence."
+    }
+  ]);
+});
+
 test("uses the next duplicate occurrence for repeated flagged text", () => {
   const input = [
     "Repeated sentence appears here.",

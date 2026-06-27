@@ -5,8 +5,12 @@ A Codex plugin skill backed by a small Node.js CLI that drives ZeroGPT through P
 ## Install
 
 ```bash
+git clone https://github.com/dlc4sacchi/codex-plugin-marketplace.git
+cd codex-plugin-marketplace/plugins/zerogpt-codex-plugin
 npm install
 npx playwright install chromium
+npm link
+zerogpt --help
 npm run check
 npm test
 ```
@@ -19,6 +23,8 @@ npm run smoke:lines
 node ./bin/zerogpt.js --text "Paste text here" --json
 node ./bin/zerogpt.js --text "Paste text here" --compact
 node ./bin/zerogpt.js --file ./input.txt
+node ./bin/zerogpt.js --file ./paper.docx --json --keep-temp
+node ./bin/zerogpt.js --file ./paper.pdf --json --temp-dir ./work/zerogpt
 cat input.txt | node ./bin/zerogpt.js --json
 ```
 
@@ -36,6 +42,9 @@ JSON output is designed to be easy to wrap from an MCP server or Codex plugin:
 ```json
 {
   "source": "zerogpt",
+  "sourceFile": "/path/to/paper.docx",
+  "textSource": "generated-markdown",
+  "convertedFile": null,
   "url": "https://www.zerogpt.com/",
   "inputLength": 147,
   "checkedAt": "2026-06-27T00:00:00.000Z",
@@ -44,6 +53,7 @@ JSON output is designed to be easy to wrap from an MCP server or Codex plugin:
   "wordCount": 23,
   "characterCount": 147,
   "notice": "Please input more text for a more accurate result",
+  "warnings": [],
   "flagged": [
     {
       "lineStart": 3,
@@ -62,12 +72,15 @@ Use `--compact` for token-efficient single-line JSON:
 
 Use `--debug` only when selectors break; it includes raw page text and costs more tokens.
 
+DOCX and embedded-text PDF files are converted to Markdown-ish text before checking. Line numbers for converted files refer to that generated text, not Word/PDF page layout. Converted temp files are deleted by default; pass `--keep-temp` to preserve them.
+
 ## Add The Marketplace
 
 In the Codex app, add this marketplace:
 
 ```text
 Source: dlc4sacchi/codex-plugin-marketplace
+Source URL: https://github.com/dlc4sacchi/codex-plugin-marketplace.git
 Git ref: main
 Sparse paths: leave blank
 ```

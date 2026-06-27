@@ -18,6 +18,8 @@ Resolve `<plugin-root>` as the directory two levels above this `SKILL.md`.
 - Use `--file <path> --json` for attached files or when the user asks for detected lines.
 - Use `--text "<text>" --json` for short text in the prompt.
 - Use `--compact` only when the user asks for a quick score, compact output, or token-efficient result.
+- For DOCX/PDF inputs, line numbers refer to the generated Markdown/text used for checking, not the original Word/PDF page layout.
+- Use `--keep-temp` only when the user asks to inspect converted text.
 - Summarize the result for the user. Include detected line ranges and snippets when `flagged` is non-empty.
 - Do not include `rawText` unless troubleshooting selectors with `--debug`.
 
@@ -26,5 +28,6 @@ Resolve `<plugin-root>` as the directory two levels above this `SKILL.md`.
 ```bash
 node <plugin-root>/bin/zerogpt.js --file input.txt --json
 node <plugin-root>/bin/zerogpt.js --file input.txt --compact
+node <plugin-root>/bin/zerogpt.js --file input.docx --json --keep-temp
 node <plugin-root>/bin/zerogpt.js --text "Text to check" --json
 ```

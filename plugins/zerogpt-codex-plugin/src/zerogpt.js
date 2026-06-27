@@ -1,8 +1,13 @@
 import { chromium } from "playwright";
 import { extractHighlightedTextFromPage } from "./highlights.js";
 import { mapHighlightedText } from "./line-map.js";
+import { checkZeroGPTInput as checkInput } from "./input.js";
 
 const DEFAULT_URL = "https://www.zerogpt.com/";
+
+export async function checkZeroGPTInput(inputOptions, runOptions = {}) {
+  return checkInput(inputOptions, runOptions, detectWithZeroGPT);
+}
 
 export async function detectWithZeroGPT(text, options = {}) {
   const input = String(text ?? "").trim();
@@ -37,6 +42,13 @@ export async function detectWithZeroGPT(text, options = {}) {
       extractHighlightedTextFromPage(page)
     ]);
     const flagged = mapHighlightedText(input, highlightedText);
+    const warnings = [];
+    if ((extracted.verdict || extracted.aiPercentage !== null) && highlightedText.length === 0) {
+      warnings.push("Highlights were not found; flagged line ranges are unavailable.");
+    }
+    if (flagged.some((item) => item.lineStart === null || item.lineEnd === null)) {
+      warnings.push("Some highlighted text could not be mapped to source lines.");
+    }
 
     return {
       source: "zerogpt",
@@ -44,6 +56,7 @@ export async function detectWithZeroGPT(text, options = {}) {
       inputLength: input.length,
       checkedAt: new Date().toISOString(),
       flagged,
+      warnings,
       ...extracted
     };
   } finally {

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import fs from "node:fs/promises";
 import process from "node:process";
-import { detectWithZeroGPT, toCompactZeroGPTResult } from "../src/zerogpt.js";
+import { checkZeroGPTInput, toCompactZeroGPTResult } from "../src/zerogpt.js";
 
 const usage = `Usage:
   zerogpt --text "text to check" [--json] [--compact] [--headed]
@@ -14,6 +13,8 @@ Options:
   --json              Print raw JSON.
   --compact           Print minimal single-line JSON. Useful for MCP/plugin calls.
   --debug             Include raw page text for selector debugging.
+  --keep-temp         Preserve converted text files and include their paths in JSON output.
+  --temp-dir <path>   Directory for temporary converted text files.
   --headed            Show the browser while running.
   --timeout <ms>      Maximum wait time. Default: 60000.
   --url <url>         ZeroGPT URL. Default: https://www.zerogpt.com/
@@ -25,6 +26,7 @@ function parseArgs(argv) {
     json: false,
     compact: false,
     debug: false,
+    keepTemp: false,
     headed: false,
     timeoutMs: 60000,
     url: "https://www.zerogpt.com/"
@@ -41,16 +43,20 @@ function parseArgs(argv) {
       options.compact = true;
     } else if (arg === "--debug") {
       options.debug = true;
+    } else if (arg === "--keep-temp") {
+      options.keepTemp = true;
+    } else if (arg === "--temp-dir") {
+      options.tempDir = readOptionValue(argv, ++i, "--temp-dir");
     } else if (arg === "--headed") {
       options.headed = true;
     } else if (arg === "--text") {
-      options.text = argv[++i];
+      options.text = readOptionValue(argv, ++i, "--text");
     } else if (arg === "--file") {
-      options.file = argv[++i];
+      options.file = readOptionValue(argv, ++i, "--file");
     } else if (arg === "--timeout") {
-      options.timeoutMs = Number(argv[++i]);
+      options.timeoutMs = Number(readOptionValue(argv, ++i, "--timeout"));
     } else if (arg === "--url") {
-      options.url = argv[++i];
+      options.url = readOptionValue(argv, ++i, "--url");
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }
@@ -63,6 +69,14 @@ function parseArgs(argv) {
   return options;
 }
 
+function readOptionValue(argv, index, optionName) {
+  const value = argv[index];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${optionName} requires a value`);
+  }
+  return value;
+}
+
 async function readStdinIfPiped() {
   if (process.stdin.isTTY) return "";
 
@@ -73,17 +87,23 @@ async function readStdinIfPiped() {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function getInputText(options) {
+async function getInputOptions(options) {
   const sources = [options.text, options.file].filter(Boolean).length;
   if (sources > 1) {
     throw new Error("Use only one input source: --text, --file, or stdin");
   }
 
-  if (options.text) return options.text;
-  if (options.file) return fs.readFile(options.file, "utf8");
+  if (options.text) return { text: options.text };
+  if (options.file) {
+    return {
+      file: options.file,
+      keepTemp: options.keepTemp,
+      tempDir: options.tempDir
+    };
+  }
 
   const stdin = await readStdinIfPiped();
-  if (stdin.trim()) return stdin;
+  if (stdin.trim()) return { stdin };
 
   throw new Error("No input text provided. Use --text, --file, or pipe stdin.");
 }
@@ -95,12 +115,17 @@ function printTextResult(result) {
   console.log(`Verdict: ${verdict}`);
   console.log(`AI score: ${score}`);
   if (result.notice) console.log(`Notice: ${result.notice}`);
+  for (const warning of result.warnings ?? []) console.log(`Warning: ${warning}`);
   if (result.wordCount !== null) console.log(`Words: ${result.wordCount}`);
   if (result.characterCount !== null) console.log(`Characters: ${result.characterCount}`);
   if (result.flagged?.length) {
     console.log("Detected lines:");
     for (const item of result.flagged) {
-      console.log(`- ${item.lineStart}-${item.lineEnd}: ${item.snippet}`);
+      const range =
+        item.lineStart === null || item.lineEnd === null
+          ? "unmapped"
+          : `${item.lineStart}-${item.lineEnd}`;
+      console.log(`- ${range}: ${item.snippet}`);
     }
   }
 }
@@ -112,8 +137,8 @@ async function main() {
     return;
   }
 
-  const text = await getInputText(options);
-  const result = await detectWithZeroGPT(text, {
+  const inputOptions = await getInputOptions(options);
+  const result = await checkZeroGPTInput(inputOptions, {
     headed: options.headed,
     includeRawText: options.debug,
     timeoutMs: options.timeoutMs,
