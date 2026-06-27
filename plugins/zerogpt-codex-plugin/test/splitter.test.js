@@ -40,7 +40,7 @@ test("splitting prefers paragraph boundaries", () => {
 test("combines chunk scores with character-weighted average and shifted lines", () => {
   const combined = combineChunkResults([
     {
-      chunk: { index: 1, inputLength: 100, startLine: 1 },
+      chunk: { index: 1, inputLength: 100, startLine: 1, startOffset: 0 },
       result: {
         url: "https://www.zerogpt.com/",
         aiPercentage: 10,
@@ -49,11 +49,11 @@ test("combines chunk scores with character-weighted average and shifted lines", 
         characterCount: 100,
         notice: null,
         warnings: [],
-        flagged: [{ lineStart: 2, lineEnd: 2, snippet: "first" }]
+        flagged: [{ lineStart: 2, lineEnd: 2, startOffset: 20, endOffset: 25, snippet: "first" }]
       }
     },
     {
-      chunk: { index: 2, inputLength: 300, startLine: 20 },
+      chunk: { index: 2, inputLength: 300, startLine: 20, startOffset: 1000 },
       result: {
         url: "https://www.zerogpt.com/",
         aiPercentage: 30,
@@ -62,7 +62,7 @@ test("combines chunk scores with character-weighted average and shifted lines", 
         characterCount: 300,
         notice: null,
         warnings: [],
-        flagged: [{ lineStart: 1, lineEnd: 3, snippet: "second" }]
+        flagged: [{ lineStart: 1, lineEnd: 3, startOffset: 10, endOffset: 16, snippet: "second" }]
       }
     }
   ]);
@@ -72,8 +72,8 @@ test("combines chunk scores with character-weighted average and shifted lines", 
   assert.equal(combined.characterCount, 400);
   assert.equal(combined.chunkCount, 2);
   assert.deepEqual(combined.flagged, [
-    { lineStart: 2, lineEnd: 2, snippet: "first" },
-    { lineStart: 20, lineEnd: 22, snippet: "second" }
+    { lineStart: 2, lineEnd: 2, startOffset: 20, endOffset: 25, snippet: "first" },
+    { lineStart: 20, lineEnd: 22, startOffset: 1010, endOffset: 1016, snippet: "second" }
   ]);
 });
 

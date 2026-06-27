@@ -45,11 +45,21 @@ export function deriveVerdict(aiPercentage) {
 }
 
 export function shiftFlaggedLines(flagged, chunk) {
-  return (flagged ?? []).map((item) => ({
-    ...item,
-    lineStart: item.lineStart === null ? null : chunk.startLine + item.lineStart - 1,
-    lineEnd: item.lineEnd === null ? null : chunk.startLine + item.lineEnd - 1
-  }));
+  return (flagged ?? []).map((item) => {
+    const shifted = {
+      ...item,
+      lineStart: item.lineStart === null ? null : chunk.startLine + item.lineStart - 1,
+      lineEnd: item.lineEnd === null ? null : chunk.startLine + item.lineEnd - 1
+    };
+
+    if (Number.isFinite(item.startOffset)) shifted.startOffset = chunk.startOffset + item.startOffset;
+    else if (item.startOffset === null) shifted.startOffset = null;
+
+    if (Number.isFinite(item.endOffset)) shifted.endOffset = chunk.startOffset + item.endOffset;
+    else if (item.endOffset === null) shifted.endOffset = null;
+
+    return shifted;
+  });
 }
 
 export function compactChunkResult(result, chunk) {
@@ -77,6 +87,9 @@ export function combineChunkResults(chunkResults) {
   const flagged = chunkResults
     .flatMap(({ chunk, result }) => shiftFlaggedLines(result.flagged, chunk))
     .sort((a, b) => {
+      const aOffset = a.startOffset ?? Number.POSITIVE_INFINITY;
+      const bOffset = b.startOffset ?? Number.POSITIVE_INFINITY;
+      if (aOffset !== bOffset) return aOffset - bOffset;
       const aLine = a.lineStart ?? Number.POSITIVE_INFINITY;
       const bLine = b.lineStart ?? Number.POSITIVE_INFINITY;
       return aLine - bLine || (a.lineEnd ?? Number.POSITIVE_INFINITY) - (b.lineEnd ?? Number.POSITIVE_INFINITY);

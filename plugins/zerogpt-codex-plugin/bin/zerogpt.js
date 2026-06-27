@@ -4,7 +4,7 @@ import { checkZeroGPTInput, toCompactZeroGPTResult } from "../src/zerogpt.js";
 
 const usage = `Usage:
   zerogpt --text "text to check" [--json] [--compact] [--headed]
-  zerogpt --file ./input.txt [--json]
+  zerogpt --file ./input.txt [--json] [--annotate]
   cat input.txt | zerogpt --json
 
 Options:
@@ -15,6 +15,9 @@ Options:
   --debug             Include raw page text for selector debugging.
   --keep-temp         Preserve converted text files and include their paths in JSON output.
   --temp-dir <path>   Directory for temporary converted text files.
+  --annotate          Write Markdown with detected spans wrapped in <ai>...</ai>.
+  --annotate-output <path>
+                       Path for annotated Markdown output. Implies --annotate.
   --concurrency <n>   Chunk browser concurrency, 1-4. Default: 1.
   --headed            Show the browser while running.
   --timeout <ms>      Maximum wait time. Default: 60000.
@@ -28,6 +31,7 @@ function parseArgs(argv) {
     compact: false,
     debug: false,
     keepTemp: false,
+    annotate: false,
     headed: false,
     timeoutMs: 60000,
     concurrency: 1,
@@ -49,6 +53,11 @@ function parseArgs(argv) {
       options.keepTemp = true;
     } else if (arg === "--temp-dir") {
       options.tempDir = readOptionValue(argv, ++i, "--temp-dir");
+    } else if (arg === "--annotate") {
+      options.annotate = true;
+    } else if (arg === "--annotate-output") {
+      options.annotate = true;
+      options.annotateOutput = readOptionValue(argv, ++i, "--annotate-output");
     } else if (arg === "--concurrency") {
       options.concurrency = Number(readOptionValue(argv, ++i, "--concurrency"));
     } else if (arg === "--headed") {
@@ -122,6 +131,7 @@ function printTextResult(result) {
   for (const warning of result.warnings ?? []) console.log(`Warning: ${warning}`);
   if (result.wordCount !== null) console.log(`Words: ${result.wordCount}`);
   if (result.characterCount !== null) console.log(`Characters: ${result.characterCount}`);
+  if (result.annotatedFile) console.log(`Annotated file: ${result.annotatedFile}`);
   if (result.flagged?.length) {
     console.log("Detected lines:");
     for (const item of result.flagged) {
@@ -146,6 +156,8 @@ async function main() {
     headed: options.headed,
     includeRawText: options.debug,
     concurrency: options.concurrency,
+    annotate: options.annotate,
+    annotateOutput: options.annotateOutput,
     timeoutMs: options.timeoutMs,
     url: options.url
   });

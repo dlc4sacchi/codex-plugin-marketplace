@@ -23,6 +23,8 @@ export function mapHighlightedText(inputText, highlights, options = {}) {
         return {
           lineStart: null,
           lineEnd: null,
+          startOffset: null,
+          endOffset: null,
           snippet: createSnippet(highlight, maxSnippetLength),
           _order: order,
           _offset: Number.POSITIVE_INFINITY
@@ -38,6 +40,8 @@ export function mapHighlightedText(inputText, highlights, options = {}) {
       return {
         lineStart: offsetToLine(index.lineStarts, start),
         lineEnd: offsetToLine(index.lineStarts, end),
+        startOffset: start,
+        endOffset: end + 1,
         snippet: createSnippet(index.source.slice(start, end + 1), maxSnippetLength),
         _order: order,
         _offset: start

@@ -7,7 +7,7 @@
     "zerogpt": "./bin/zerogpt.js"
   },
   "scripts": {
-    "check": "node --check bin/zerogpt.js && node --check src/zerogpt.js && node --check src/line-map.js && node --check src/highlights.js && node --check src/input.js && node --check src/splitter.js && node --check src/constants.js && node --check scripts/smoke-test-docs.js",
+    "check": "node --check bin/zerogpt.js && node --check src/zerogpt.js && node --check src/line-map.js && node --check src/highlights.js && node --check src/input.js && node --check src/splitter.js && node --check src/constants.js && node --check src/annotation.js && node --check scripts/smoke-test-docs.js",
     "test": "node --test",
     "smoke": "node ./bin/zerogpt.js --text \"This is a short human-written sample for testing the detector automation. It contains ordinary prose and should be enough to exercise the workflow.\" --compact",
     "smoke:lines": "node ./bin/zerogpt.js --file test/fixtures/framework-sample.txt --json",

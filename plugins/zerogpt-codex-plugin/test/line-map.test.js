@@ -25,6 +25,8 @@ test("maps an exact highlighted paragraph to source lines", () => {
   assert.equal(flagged.length, 1);
   assert.equal(flagged[0].lineStart, 3);
   assert.equal(flagged[0].lineEnd, 5);
+  assert.equal(flagged[0].startOffset, input.indexOf("Framework Computer"));
+  assert.equal(flagged[0].endOffset, input.indexOf("one part fails.") + "one part fails.".length);
   assert.match(flagged[0].snippet, /^Framework Computer is a small computer company/);
 });
 
@@ -55,6 +57,8 @@ test("maps highlights when ZeroGPT changes spacing around punctuation", () => {
     {
       lineStart: 1,
       lineEnd: 1,
+      startOffset: 0,
+      endOffset: input.length,
       snippet: "Framework sells control: repairability, Linux support, and upgrades."
     }
   ]);
@@ -67,6 +71,8 @@ test("returns unmapped highlights with null lines", () => {
     {
       lineStart: null,
       lineEnd: null,
+      startOffset: null,
+      endOffset: null,
       snippet: "Missing highlighted sentence."
     }
   ]);

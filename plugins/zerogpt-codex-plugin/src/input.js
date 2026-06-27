@@ -4,6 +4,11 @@ import path from "node:path";
 import { TextDecoder } from "node:util";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
+import {
+  defaultAnnotatedOutputPath,
+  stripAiTags,
+  writeAnnotatedFile
+} from "./annotation.js";
 import { combineChunkResults, splitTextForZeroGPT } from "./splitter.js";
 
 const TEXT_EXTENSIONS = new Set([
@@ -49,10 +54,20 @@ export async function checkZeroGPTInput(inputOptions, runOptions = {}, detector)
 
   try {
     const chunks = splitTextForZeroGPT(prepared.text);
-    const result =
+    let result =
       chunks.length === 1
         ? await detect(chunks[0].text, runOptions)
         : combineChunkResults(await detectChunks(chunks, detect, runOptions));
+    const annotatedFile = runOptions.annotate
+      ? await writeAnnotatedResult(prepared, result.flagged, runOptions)
+      : null;
+
+    if (annotatedFile) {
+      result = {
+        ...result,
+        annotatedFile
+      };
+    }
 
     return {
       ...result,
@@ -220,7 +235,8 @@ async function writeConvertedText(text, options) {
 
 function preparedText(text, metadata) {
   const sanitized = omitEmbeddedDataUrls(String(text ?? ""));
-  const value = sanitized.text.trim();
+  const stripped = stripAiTags(sanitized.text);
+  const value = stripped.text.trim();
   if (!value) throw new Error("Input text is empty");
 
   return {
@@ -228,9 +244,20 @@ function preparedText(text, metadata) {
     sourceFile: metadata.sourceFile ?? null,
     textSource: metadata.textSource,
     convertedFile: metadata.convertedFile ?? null,
-    warnings: [...(metadata.warnings ?? []), ...sanitized.warnings],
+    warnings: [...new Set([...(metadata.warnings ?? []), ...sanitized.warnings, ...stripped.warnings])],
     cleanup: metadata.cleanup ?? async function noop() {}
   };
+}
+
+async function writeAnnotatedResult(prepared, flagged, runOptions) {
+  const outputPath = resolveAnnotatedOutputPath(prepared, runOptions);
+  return writeAnnotatedFile(prepared.text, flagged, outputPath);
+}
+
+function resolveAnnotatedOutputPath(prepared, runOptions) {
+  if (runOptions.annotateOutput) return path.resolve(runOptions.annotateOutput);
+  if (prepared.sourceFile) return defaultAnnotatedOutputPath(prepared.sourceFile);
+  throw new Error("--annotate requires --file or --annotate-output for text/stdin input");
 }
 
 function decodeSafeUtf8(buffer, filePath, ext) {

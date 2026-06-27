@@ -24,6 +24,7 @@ npm run smoke:test-docs
 node ./bin/zerogpt.js --text "Paste text here" --json
 node ./bin/zerogpt.js --text "Paste text here" --compact
 node ./bin/zerogpt.js --file ./input.txt
+node ./bin/zerogpt.js --file ./paper.md --annotate --json
 node ./bin/zerogpt.js --file ./paper.docx --json --keep-temp
 node ./bin/zerogpt.js --file ./paper.pdf --json --temp-dir ./work/zerogpt
 cat input.txt | node ./bin/zerogpt.js --json
@@ -31,6 +32,7 @@ cat input.txt | node ./bin/zerogpt.js --json
 
 Inputs longer than 15,000 characters are split into multiple ZeroGPT browser runs. Full JSON includes `split`, `chunkCount`, and compact `chunks[]` metadata; compact JSON stays score-only.
 Use `--concurrency 2` for long files if you want faster chunk checks. Higher concurrency can make ZeroGPT more likely to rate-limit or stall, so the CLI caps it at 4 and defaults to 1.
+Use `--annotate` to write a Markdown copy with detected spans wrapped in `<ai>...</ai>`. If the input already contains `<ai>` tags, they are removed before checking so repeated runs do not affect the score or create nested tags.
 `npm run smoke:test-docs` uses local files in `/home/saint/test docs` and the live ZeroGPT website, so it can be slow or drift as ZeroGPT changes.
 
 For local global-style use:
@@ -63,6 +65,8 @@ JSON output is designed to be easy to wrap from an MCP server or Codex plugin:
     {
       "lineStart": 3,
       "lineEnd": 5,
+      "startOffset": 20,
+      "endOffset": 147,
       "snippet": "Framework Computer is a small computer company..."
     }
   ]
@@ -78,6 +82,7 @@ Use `--compact` for token-efficient single-line JSON:
 Use `--debug` only when selectors break; it includes raw page text and costs more tokens.
 
 DOCX and embedded-text PDF files are converted to Markdown-ish text before checking. Line numbers for converted files refer to that generated text, not Word/PDF page layout. Converted temp files are deleted by default; pass `--keep-temp` to preserve them.
+Annotated output defaults to `<input-name>.zerogpt.ai.md` beside the input file. Override that path with `--annotate-output ./review.md`.
 
 ## Add The Marketplace
 
